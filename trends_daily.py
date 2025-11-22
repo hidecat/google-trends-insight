@@ -28,8 +28,10 @@ KEYWORD_GROUPS = [
 ]
 
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
-SHEET_NAME = "シート1"
+SHEET_NAME_MAIN = "シート1"       # 既存の集計先（今使っているシート名）
+SHEET_NAME_TRENDING = "Trending" # 急上昇ワードを書き込む新しいシート
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
 
 # ===== Google Trends の取得 =====
 
@@ -60,6 +62,40 @@ def get_trends_row():
 
     return row
 
+# ===== Google Trends（急上昇ワード） の取得 =====
+
+def get_trending_rows():
+    """
+    Googleトレンドの急上昇ワードを取得して、
+    [datetime, type, rank, keyword] の行リストを返す
+    type は "daily" と "realtime" の2種類
+    """
+    rows = []
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 1) デイリー急上昇ワード（japan）
+    py_daily = TrendReq(hl="ja-JP", tz=540)
+    daily_df = py_daily.trending_searches(pn="japan")  # 国は japan でOK
+    # daily_df の 0列目にキーワード一覧が入っている
+    daily_keywords = daily_df[0].tolist()
+
+    for rank, kw in enumerate(daily_keywords, start=1):
+        rows.append([now_str, "daily", rank, kw])
+
+    # 2) リアルタイム急上昇ワード（JP）
+    py_rt = TrendReq(hl="ja-JP", tz=540)
+    rt_df = py_rt.realtime_trending_searches(pn="JP")
+    # realtime_trending_searches の "title" 列にキーワードが入ることが多い
+    if "title" in rt_df.columns:
+        rt_keywords = rt_df["title"].tolist()
+    else:
+        # 念のためフォールバック：最初の列を使う
+        rt_keywords = rt_df.iloc[:, 0].tolist()
+
+    for rank, kw in enumerate(rt_keywords, start=1):
+        rows.append([now_str, "realtime", rank, kw])
+
+    return rows
 
 # ===== スプレッドシートへ追記 =====
 
@@ -109,14 +145,59 @@ def append_to_sheet(row):
     # ここに来ることはあまりないはず
     raise last_error
 
+# ===== スプレッドシート（Trending）へ追記 =====
+
+def get_gspread_client():
+    """gspread のクライアントを返す（既存のJSON処理を共通化）"""
+    raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if not raw:
+        raise RuntimeError("環境変数 GOOGLE_SERVICE_ACCOUNT_JSON が設定されていません")
+
+    # JSON文字列から { ... } 部分だけ抜き出す（前に入れたガードロジック）
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1:
+        raise RuntimeError("サービスアカウントJSONが正しくありません（{ } が見つからない）")
+
+    json_str = raw[start:end + 1]
+    sa_dict = json.loads(json_str)
+
+    credentials = Credentials.from_service_account_info(sa_dict, scopes=SCOPES)
+    gc = gspread.authorize(credentials)
+    return gc
+
+
+def append_trending_rows(rows):
+    """急上昇ワードの行リストを Trending シートにまとめて追記"""
+
+    if not rows:
+        print("急上昇ワードが空だったので何も書き込みませんでした。")
+        return
+
+    gc = get_gspread_client()
+    sh = gc.open_by_key(SPREADSHEET_ID)
+    worksheet = sh.worksheet(SHEET_NAME_TRENDING)
+
+    # 一括で書き込む（1行ずつ append_row してもOKだが多少遅い）
+    # gspread には append_rows はないので、単純に for で回す
+    for row in rows:
+        worksheet.append_row(row, value_input_option="RAW")
+
+    print(f"急上昇ワード {len(rows)} 行を書き込みました。")
+
 # ===== メイン =====
 
 def main():
+    # 1) 既存のキーワード群のトレンドを1行書き込み
     row = get_trends_row()
     print("追加する行:", row)
-
     append_to_sheet(row)
-    print("スプレッドシートに追記しました")
+    print("メインシートに追記しました")
+
+    # 2) Googleトレンドの急上昇ワードAPIから一覧取得 → Trendingシートに書き込み
+    trending_rows = get_trending_rows()
+    print(f"急上昇ワード行数: {len(trending_rows)}")
+    append_trending_rows(trending_rows)
 
 if __name__ == "__main__":
     main()
