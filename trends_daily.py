@@ -4,40 +4,40 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 import os
 
-# ===== İ’è‚±‚±‚©‚ç =====
+# ===== è¨­å®šã“ã“ã‹ã‚‰ =====
 
-# ŠÄ‹‚µ‚½‚¢ƒL[ƒ[ƒh
-KEYWORDS = ["Šy“V", "Amazon", "‚Ó‚é‚³‚Æ”[Å", "ƒuƒ‰ƒbƒNƒtƒ‰ƒCƒf[", "NISA", "ChatGPT"]
+# ç›£è¦–ã—ãŸã„ã‚­ãƒ¼ãƒ¯ãƒ¼ãƒ‰
+KEYWORDS = ["æ¥½å¤©", "Amazon", "ãµã‚‹ã•ã¨ç´ç¨", "ãƒ–ãƒ©ãƒƒã‚¯ãƒ•ãƒ©ã‚¤ãƒ‡ãƒ¼", "NISA", "ChatGPT"]
 
-# GoogleƒXƒvƒŒƒbƒhƒV[ƒg‚ÌIDiURL‚Ì /d/ ‚Æ /edit ‚ÌŠÔ‚Ì•”•ªj
-SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")  # GitHub Secrets‚©‚ç“n‚·
+# Googleã‚¹ãƒ—ãƒ¬ãƒƒãƒ‰ã‚·ãƒ¼ãƒˆã®IDï¼ˆURLã® /d/ ã¨ /edit ã®é–“ã®éƒ¨åˆ†ï¼‰
+SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")  # GitHub Secretsã‹ã‚‰æ¸¡ã™
 
-# ‘‚«‚İæ‚ÌƒV[ƒg–¼
+# æ›¸ãè¾¼ã¿å…ˆã®ã‚·ãƒ¼ãƒˆå
 SHEET_NAME = "Sheet1"
 
-# ƒT[ƒrƒXƒAƒJƒEƒ“ƒg‚ÌƒXƒR[ƒv
+# ã‚µãƒ¼ãƒ“ã‚¹ã‚¢ã‚«ã‚¦ãƒ³ãƒˆã®ã‚¹ã‚³ãƒ¼ãƒ—
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# ===== İ’è‚±‚±‚Ü‚Å =====
+# ===== è¨­å®šã“ã“ã¾ã§ =====
 
 
 def get_trends_row():
-    """¡“ú‚ÌGoogleƒgƒŒƒ“ƒhƒXƒRƒA‚ğ1s•ªæ“¾‚µ‚ÄA[“ú•t, k1, k2, ...] ‚ÌŒ`‚Å•Ô‚·"""
+    """ä»Šæ—¥ã®Googleãƒˆãƒ¬ãƒ³ãƒ‰ã‚¹ã‚³ã‚¢ã‚’1è¡Œåˆ†å–å¾—ã—ã¦ã€[æ—¥ä»˜, k1, k2, ...] ã®å½¢ã§è¿”ã™"""
 
     pytrends = TrendReq(hl="ja-JP", tz=540)
 
-    # ’¼‹ß1“ú‚Ìƒf[ƒ^‚ğæ“¾itoday 1-d ‚¾‚ÆŠÔ’PˆÊ‚É‚È‚é‚Ì‚Å now 1-dj
+    # ç›´è¿‘1æ—¥ã®ãƒ‡ãƒ¼ã‚¿ã‚’å–å¾—ï¼ˆtoday 1-d ã ã¨æ™‚é–“å˜ä½ã«ãªã‚‹ã®ã§ now 1-dï¼‰
     pytrends.build_payload(KEYWORDS, geo="JP", timeframe="now 1-d")
     df = pytrends.interest_over_time()
 
     if df.empty:
-        raise RuntimeError("GoogleƒgƒŒƒ“ƒh‚Ìƒf[ƒ^‚ªæ“¾‚Å‚«‚Ü‚¹‚ñ‚Å‚µ‚½")
+        raise RuntimeError("Googleãƒˆãƒ¬ãƒ³ãƒ‰ã®ãƒ‡ãƒ¼ã‚¿ãŒå–å¾—ã§ãã¾ã›ã‚“ã§ã—ãŸ")
 
-    # ˆê”ÔV‚µ‚¢s‚ğg‚¤
+    # ä¸€ç•ªæ–°ã—ã„è¡Œã‚’ä½¿ã†
     latest = df.iloc[-1]
 
-    # “ú•t‚Íindex‚©‚çæ‚é
-    dt = df.index[-1]  # pandas‚ÌTimestamp
+    # æ—¥ä»˜ã¯indexã‹ã‚‰å–ã‚‹
+    dt = df.index[-1]  # pandasã®Timestamp
     date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
 
     row = [date_str]
@@ -48,12 +48,12 @@ def get_trends_row():
 
 
 def append_to_sheet(row):
-    """ƒXƒvƒŒƒbƒhƒV[ƒg‚Ì––”ö‚É1s’Ç‰Á"""
+    """ã‚¹ãƒ—ãƒ¬ãƒƒãƒ‰ã‚·ãƒ¼ãƒˆã®æœ«å°¾ã«1è¡Œè¿½åŠ """
 
-    # GitHub Secrets‚©‚çJSON•¶š—ñ‚Åó‚¯æ‚Á‚½‚à‚Ì
+    # GitHub Secretsã‹ã‚‰JSONæ–‡å­—åˆ—ã§å—ã‘å–ã£ãŸã‚‚ã®
     service_account_info = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if not service_account_info:
-        raise RuntimeError("ŠÂ‹«•Ï” GOOGLE_SERVICE_ACCOUNT_JSON ‚ªİ’è‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ")
+        raise RuntimeError("ç’°å¢ƒå¤‰æ•° GOOGLE_SERVICE_ACCOUNT_JSON ãŒè¨­å®šã•ã‚Œã¦ã„ã¾ã›ã‚“")
 
     import json
     sa_dict = json.loads(service_account_info)
@@ -68,13 +68,13 @@ def append_to_sheet(row):
 
 
 def main():
-    # 1s•ª‚Ìƒf[ƒ^‚ğæ“¾
+    # 1è¡Œåˆ†ã®ãƒ‡ãƒ¼ã‚¿ã‚’å–å¾—
     row = get_trends_row()
-    print("’Ç‰Á‚·‚és:", row)
+    print("è¿½åŠ ã™ã‚‹è¡Œ:", row)
 
-    # ’Ç‹L
+    # è¿½è¨˜
     append_to_sheet(row)
-    print("ƒXƒvƒŒƒbƒhƒV[ƒg‚É’Ç‹L‚µ‚Ü‚µ‚½")
+    print("ã‚¹ãƒ—ãƒ¬ãƒƒãƒ‰ã‚·ãƒ¼ãƒˆã«è¿½è¨˜ã—ã¾ã—ãŸ")
 
 
 if __name__ == "__main__":
