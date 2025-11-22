@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from pytrends.request import TrendReq
+from pytrends.exceptions import ResponseError  # ★これを追加
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
@@ -68,32 +69,39 @@ def get_trending_rows():
     """
     Googleトレンドの急上昇ワードを取得して、
     [datetime, type, rank, keyword] の行リストを返す
-    type は "daily" と "realtime" の2種類
+    どれかのAPIが失敗した場合は、その分は諦めてスキップする
     """
     rows = []
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # 1) デイリー急上昇ワード（japan）
-    py_daily = TrendReq(hl="ja-JP", tz=540)
-    daily_df = py_daily.trending_searches(pn="japan")  # 国は japan でOK
-    # daily_df の 0列目にキーワード一覧が入っている
-    daily_keywords = daily_df[0].tolist()
+    # 1) デイリー急上昇ワード（trending_searches）
+    try:
+        py_daily = TrendReq(hl="ja-JP", tz=540)
+        daily_df = py_daily.trending_searches(pn="japan")  # 国: japan
+        daily_keywords = daily_df[0].tolist()
+        for rank, kw in enumerate(daily_keywords, start=1):
+            rows.append([now_str, "daily", rank, kw])
+        print(f"daily trending: {len(daily_keywords)} 件取得")
+    except ResponseError as e:
+        print(f"[WARN] trending_searches (daily) が失敗しました: {e}")
+    except Exception as e:
+        print(f"[WARN] trending_searches (daily) で予期せぬエラー: {e}")
 
-    for rank, kw in enumerate(daily_keywords, start=1):
-        rows.append([now_str, "daily", rank, kw])
-
-    # 2) リアルタイム急上昇ワード（JP）
-    py_rt = TrendReq(hl="ja-JP", tz=540)
-    rt_df = py_rt.realtime_trending_searches(pn="JP")
-    # realtime_trending_searches の "title" 列にキーワードが入ることが多い
-    if "title" in rt_df.columns:
-        rt_keywords = rt_df["title"].tolist()
-    else:
-        # 念のためフォールバック：最初の列を使う
-        rt_keywords = rt_df.iloc[:, 0].tolist()
-
-    for rank, kw in enumerate(rt_keywords, start=1):
-        rows.append([now_str, "realtime", rank, kw])
+    # 2) リアルタイム急上昇ワード（realtime_trending_searches）
+    try:
+        py_rt = TrendReq(hl="ja-JP", tz=540)
+        rt_df = py_rt.realtime_trending_searches(pn="JP")
+        if "title" in rt_df.columns:
+            rt_keywords = rt_df["title"].tolist()
+        else:
+            rt_keywords = rt_df.iloc[:, 0].tolist()
+        for rank, kw in enumerate(rt_keywords, start=1):
+            rows.append([now_str, "realtime", rank, kw])
+        print(f"realtime trending: {len(rt_keywords)} 件取得")
+    except ResponseError as e:
+        print(f"[WARN] realtime_trending_searches が失敗しました: {e}")
+    except Exception as e:
+        print(f"[WARN] realtime_trending_searches で予期せぬエラー: {e}")
 
     return rows
 
@@ -194,10 +202,13 @@ def main():
     append_to_sheet(row)
     print("メインシートに追記しました")
 
-    # 2) Googleトレンドの急上昇ワードAPIから一覧取得 → Trendingシートに書き込み
-    trending_rows = get_trending_rows()
-    print(f"急上昇ワード行数: {len(trending_rows)}")
-    append_trending_rows(trending_rows)
+    # 2) 急上昇ワード（失敗しても全体は止めない）
+    try:
+        trending_rows = get_trending_rows()
+        print(f"急上昇ワード行数: {len(trending_rows)}")
+        append_trending_rows(trending_rows)
+    except Exception as e:
+        print(f"[WARN] 急上昇ワード処理中にエラーが発生しましたが、スキップします: {e}")
 
 if __name__ == "__main__":
     main()
