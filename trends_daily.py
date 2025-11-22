@@ -16,22 +16,32 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 # ===== Google Trends の取得 =====
 
 def get_trends_row():
+    """Google Trendsの複数キーワードグループをまとめて取得する"""
     pytrends = TrendReq(hl="ja-JP", tz=540)
-    pytrends.build_payload(KEYWORDS, geo="JP", timeframe="now 1-d")
 
-    df = pytrends.interest_over_time()
-    if df.empty:
-        raise RuntimeError("Googleトレンドのデータが取得できませんでした")
+    all_values = []
+    current_timestamp = None
 
-    latest = df.iloc[-1]
-    dt = df.index[-1]
-    date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+    for group in KEYWORD_GROUPS:
+        pytrends.build_payload(group, geo="JP", timeframe="now 1-d")
+        df = pytrends.interest_over_time()
+        if df.empty:
+            raise RuntimeError("Googleトレンドのデータが取得できませんでした")
 
-    row = [date_str]
-    for kw in KEYWORDS:
-        row.append(int(latest[kw]))
+        # 日付（index）はどのグループも同じなので、最初の1回だけ保存
+        if current_timestamp is None:
+            dt = df.index[-1]
+            current_timestamp = dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        latest = df.iloc[-1]
+        for kw in group:
+            all_values.append(int(latest[kw]))
+
+    # 先頭に日付を付ける
+    row = [current_timestamp] + all_values
 
     return row
+
 
 # ===== スプレッドシートへ追記 =====
 
