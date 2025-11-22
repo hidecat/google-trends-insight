@@ -34,7 +34,7 @@ def get_trends_row():
     current_timestamp = None
 
     for group in KEYWORD_GROUPS:
-        pytrends.build_payload(group, geo="JP", timeframe="now 1-m")
+        pytrends.build_payload(group, geo="JP", timeframe="today 1-m")
         df = pytrends.interest_over_time()
         if df.empty:
             raise RuntimeError("Googleトレンドのデータが取得できませんでした")
