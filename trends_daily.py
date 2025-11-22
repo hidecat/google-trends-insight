@@ -36,11 +36,24 @@ def get_trends_row():
 # ===== スプレッドシートへ追記 =====
 
 def append_to_sheet(row):
-    service_account_info = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-    if not service_account_info:
+    """スプレッドシートの末尾に1行追加"""
+
+    raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if not raw:
         raise RuntimeError("環境変数 GOOGLE_SERVICE_ACCOUNT_JSON が設定されていません")
 
-    sa_dict = json.loads(service_account_info)
+    import json
+
+    # raw の中から「最初の { 〜 最後の }」だけを抜き出して JSON として扱う
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1:
+        raise RuntimeError("サービスアカウントJSONが正しくありません（{ } が見つからない）")
+
+    json_str = raw[start:end + 1]
+
+    sa_dict = json.loads(json_str)
+
     credentials = Credentials.from_service_account_info(sa_dict, scopes=SCOPES)
 
     gc = gspread.authorize(credentials)
