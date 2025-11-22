@@ -128,7 +128,7 @@ def append_to_sheet(row):
         try:
             print(f"Try {attempt+1}/3: open spreadsheet & append row")
             sh = gc.open_by_key(SPREADSHEET_ID)
-            worksheet = sh.worksheet(SHEET_NAME)
+            worksheet = sh.worksheet(SHEET_NAME_MAIN)
             worksheet.append_row(row, value_input_option="RAW")
             print("Appended successfully.")
             return
