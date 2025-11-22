@@ -8,7 +8,10 @@ import json
 
 # ===== 設定 =====
 
-KEYWORDS = ["楽天", "Amazon", "ふるさと納税", "ブラックフライデー", "NISA"]
+KEYWORD_GROUPS = [
+    ["楽天", "Amazon", "ふるさと納税", "ブラックフライデー", "ChatGPT"],
+    ["NISA", "ポケモン", "スシロー", "ウーバーイーツ", "ふるさと"]
+]
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 SHEET_NAME = "シート1"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
