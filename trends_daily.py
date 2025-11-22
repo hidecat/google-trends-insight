@@ -124,6 +124,34 @@ def get_gspread_client():
     gc = gspread.authorize(credentials)
     return gc
 
+def append_to_sheet(row):
+    """メインシート（SHEET_NAME_MAIN）に1行追記する。最大3回リトライ付き。"""
+    import time
+    from gspread.exceptions import APIError
+
+    gc = get_gspread_client()          # 既に定義済みの関数を使う
+    sh = gc.open_by_key(SPREADSHEET_ID)
+
+    last_error = None
+    for attempt in range(3):
+        try:
+            print(f"Try {attempt+1}/3: open spreadsheet & append row")
+            worksheet = sh.worksheet(SHEET_NAME_MAIN)   # ← ここがポイント（SHEET_NAMEじゃなくSHEET_NAME_MAIN）
+            worksheet.append_row(row, value_input_option="RAW")
+            print("Appended successfully.")
+            return
+        except APIError as e:
+            last_error = e
+            print(f"APIError on attempt {attempt+1}: {e}")
+            if attempt < 2:
+                time.sleep(5)
+            else:
+                raise
+
+    # 保険（ここに来ることはほぼない）
+    if last_error:
+        raise last_error
+
 
 def append_trending_rows(rows):
     """急上昇ワードの行リストを Trending シートにまとめて追記"""
