@@ -49,31 +49,50 @@ def get_trends_row():
 # ===== スプレッドシートへ追記 =====
 
 def append_to_sheet(row):
-    """スプレッドシートの末尾に1行追加"""
+    """スプレッドシートの末尾に1行追加（最大3回リトライ）"""
 
     raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if not raw:
         raise RuntimeError("環境変数 GOOGLE_SERVICE_ACCOUNT_JSON が設定されていません")
 
     import json
+    import time
+    from gspread.exceptions import APIError
 
-    # raw の中から「最初の { 〜 最後の }」だけを抜き出して JSON として扱う
+    # raw から { ... } 部分だけを抜き出す
     start = raw.find("{")
     end = raw.rfind("}")
     if start == -1 or end == -1:
         raise RuntimeError("サービスアカウントJSONが正しくありません（{ } が見つからない）")
 
     json_str = raw[start:end + 1]
-
     sa_dict = json.loads(json_str)
 
     credentials = Credentials.from_service_account_info(sa_dict, scopes=SCOPES)
-
     gc = gspread.authorize(credentials)
-    sh = gc.open_by_key(SPREADSHEET_ID)
-    worksheet = sh.worksheet(SHEET_NAME)
 
-    worksheet.append_row(row, value_input_option="RAW")
+    # 最大3回リトライ
+    last_error = None
+    for attempt in range(3):
+        try:
+            print(f"Try {attempt+1}/3: open spreadsheet & append row")
+            sh = gc.open_by_key(SPREADSHEET_ID)
+            worksheet = sh.worksheet(SHEET_NAME)
+            worksheet.append_row(row, value_input_option="RAW")
+            print("Appended successfully.")
+            return
+        except APIError as e:
+            last_error = e
+            print(f"APIError on attempt {attempt+1}: {e}")
+            # 500系は一時的なことが多いので、少し待って再試行
+            if attempt < 2:
+                time.sleep(5)
+            else:
+                # 3回失敗したら諦める
+                raise
+
+    # ここに来ることはあまりないはず
+    raise last_error
 
 # ===== メイン =====
 
