@@ -65,38 +65,36 @@ def get_trends_row():
 
 # ===== Google Trends（急上昇ワード） の取得 =====
 
+from pytrends.request import TrendReq
+from pytrends.exceptions import ResponseError
+from datetime import datetime
+
 def get_trending_rows():
     """
-    Googleトレンドの急上昇ワードを取得して、
+    Googleトレンドのリアルタイム急上昇ワードを取得して、
     [datetime, type, rank, keyword] の行リストを返す
-    どれかのAPIが失敗した場合は、その分は諦めてスキップする
+    （まずは realtime のみ。daily は一旦封印）
     """
     rows = []
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # 1) デイリー急上昇ワード（trending_searches）
-    try:
-        py_daily = TrendReq(hl="ja-JP", tz=540)
-        daily_df = py_daily.trending_searches(pn="japan")  # 国: japan
-        daily_keywords = daily_df[0].tolist()
-        for rank, kw in enumerate(daily_keywords, start=1):
-            rows.append([now_str, "daily", rank, kw])
-        print(f"daily trending: {len(daily_keywords)} 件取得")
-    except ResponseError as e:
-        print(f"[WARN] trending_searches (daily) が失敗しました: {e}")
-    except Exception as e:
-        print(f"[WARN] trending_searches (daily) で予期せぬエラー: {e}")
-
-    # 2) リアルタイム急上昇ワード（realtime_trending_searches）
+    # リアルタイム急上昇ワード（realtime_trending_searches）
     try:
         py_rt = TrendReq(hl="ja-JP", tz=540)
         rt_df = py_rt.realtime_trending_searches(pn="JP")
+
+        # デバッグ用：カラム構成をログに出す
+        print("realtime columns:", rt_df.columns)
+
         if "title" in rt_df.columns:
             rt_keywords = rt_df["title"].tolist()
         else:
+            # 念のためフォールバック：最初の列を使う
             rt_keywords = rt_df.iloc[:, 0].tolist()
+
         for rank, kw in enumerate(rt_keywords, start=1):
             rows.append([now_str, "realtime", rank, kw])
+
         print(f"realtime trending: {len(rt_keywords)} 件取得")
     except ResponseError as e:
         print(f"[WARN] realtime_trending_searches が失敗しました: {e}")
@@ -104,54 +102,6 @@ def get_trending_rows():
         print(f"[WARN] realtime_trending_searches で予期せぬエラー: {e}")
 
     return rows
-
-# ===== スプレッドシートへ追記 =====
-
-def append_to_sheet(row):
-    """スプレッドシートの末尾に1行追加（最大3回リトライ）"""
-
-    raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-    if not raw:
-        raise RuntimeError("環境変数 GOOGLE_SERVICE_ACCOUNT_JSON が設定されていません")
-
-    import json
-    import time
-    from gspread.exceptions import APIError
-
-    # raw から { ... } 部分だけを抜き出す
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start == -1 or end == -1:
-        raise RuntimeError("サービスアカウントJSONが正しくありません（{ } が見つからない）")
-
-    json_str = raw[start:end + 1]
-    sa_dict = json.loads(json_str)
-
-    credentials = Credentials.from_service_account_info(sa_dict, scopes=SCOPES)
-    gc = gspread.authorize(credentials)
-
-    # 最大3回リトライ
-    last_error = None
-    for attempt in range(3):
-        try:
-            print(f"Try {attempt+1}/3: open spreadsheet & append row")
-            sh = gc.open_by_key(SPREADSHEET_ID)
-            worksheet = sh.worksheet(SHEET_NAME_MAIN)
-            worksheet.append_row(row, value_input_option="RAW")
-            print("Appended successfully.")
-            return
-        except APIError as e:
-            last_error = e
-            print(f"APIError on attempt {attempt+1}: {e}")
-            # 500系は一時的なことが多いので、少し待って再試行
-            if attempt < 2:
-                time.sleep(5)
-            else:
-                # 3回失敗したら諦める
-                raise
-
-    # ここに来ることはあまりないはず
-    raise last_error
 
 # ===== スプレッドシート（Trending）へ追記 =====
 
