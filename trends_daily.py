@@ -69,28 +69,34 @@ from pytrends.request import TrendReq
 from pytrends.exceptions import ResponseError
 from datetime import datetime
 
+from pytrends.request import TrendReq
+from pytrends.exceptions import ResponseError
+from datetime import datetime
+
 def get_trending_rows():
     """
     Googleトレンドのリアルタイム急上昇ワードを取得して、
     [datetime, type, rank, keyword] の行リストを返す
-    （まずは realtime のみ。daily は一旦封印）
     """
     rows = []
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # リアルタイム急上昇ワード（realtime_trending_searches）
     try:
         py_rt = TrendReq(hl="ja-JP", tz=540)
         rt_df = py_rt.realtime_trending_searches(pn="JP")
 
-        # デバッグ用：カラム構成をログに出す
-        print("realtime columns:", rt_df.columns)
+        # ここでログ出し
+        print("realtime_trending_searches columns:", rt_df.columns)
+        print("realtime_trending_searches head:")
+        print(rt_df.head().to_string())
 
         if "title" in rt_df.columns:
             rt_keywords = rt_df["title"].tolist()
         else:
-            # 念のためフォールバック：最初の列を使う
+            # フォールバック：最初の列
             rt_keywords = rt_df.iloc[:, 0].tolist()
+
+        print("realtime keywords sample:", rt_keywords[:10])
 
         for rank, kw in enumerate(rt_keywords, start=1):
             rows.append([now_str, "realtime", rank, kw])
@@ -179,21 +185,16 @@ def debug_write_trending():
 # ===== メイン =====
 
 def main():
-    # 1) 既存のキーワード群のトレンドを1行書き込み
+    # 1) 既存トレンド行
     row = get_trends_row()
     print("追加する行:", row)
     append_to_sheet(row)
     print("メインシートに追記しました")
 
-    # 2) 急上昇ワード（本番前に、まずは書き込みテスト）
-    debug_write_trending()  # ★一時的にこれだけにする    
-#    # 2) 急上昇ワード（失敗しても全体は止めない）
-#    try:
-#        trending_rows = get_trending_rows()
-#        print(f"急上昇ワード行数: {len(trending_rows)}")
-#        append_trending_rows(trending_rows)
-#    except Exception as e:
-#        print(f"[WARN] 急上昇ワード処理中にエラーが発生しましたが、スキップします: {e}")
+    # 2) 急上昇ワード
+    trending_rows = get_trending_rows()
+    print(f"急上昇ワード行数: {len(trending_rows)}")
+    append_trending_rows(trending_rows)
 
 if __name__ == "__main__":
     main()
