@@ -171,6 +171,11 @@ def append_trending_rows(rows):
 
     print(f"急上昇ワード {len(rows)} 行を書き込みました。")
 
+def debug_write_trending():
+    """Trendingシートにテスト行を書き込む（動作確認用）"""
+    test_row = [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "debug", 0, "テスト書き込み"]
+    append_trending_rows([test_row])
+
 # ===== メイン =====
 
 def main():
