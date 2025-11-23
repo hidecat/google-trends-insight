@@ -185,13 +185,15 @@ def main():
     append_to_sheet(row)
     print("メインシートに追記しました")
 
-    # 2) 急上昇ワード（失敗しても全体は止めない）
-    try:
-        trending_rows = get_trending_rows()
-        print(f"急上昇ワード行数: {len(trending_rows)}")
-        append_trending_rows(trending_rows)
-    except Exception as e:
-        print(f"[WARN] 急上昇ワード処理中にエラーが発生しましたが、スキップします: {e}")
+    # 2) 急上昇ワード（本番前に、まずは書き込みテスト）
+    debug_write_trending()  # ★一時的にこれだけにする    
+#    # 2) 急上昇ワード（失敗しても全体は止めない）
+#    try:
+#        trending_rows = get_trending_rows()
+#        print(f"急上昇ワード行数: {len(trending_rows)}")
+#        append_trending_rows(trending_rows)
+#    except Exception as e:
+#        print(f"[WARN] 急上昇ワード処理中にエラーが発生しましたが、スキップします: {e}")
 
 if __name__ == "__main__":
     main()
